@@ -2,7 +2,7 @@
 
 A full-stack application that generates HTML code from natural language descriptions and provides live previews.
 
-![App Screenshot](./screenshot.png)
+![App Screenshot](./image.png)
 
 ## Features
 

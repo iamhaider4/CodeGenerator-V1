@@ -10,6 +10,8 @@ function App() {
   const [html, setHtml] = useState('<html><body><h1>Preview will appear here</h1></body></html>');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const isReactCode = (code) => /import React/.test(code) || /ReactDOM/.test(code);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,20 +19,17 @@ function App() {
     setError('');
     
     try {
-      const response = await axios.post('http://localhost:8000/generate', {
-        prompt,
-        language: 'html'
-      });
-      
-      // Handle both direct code and message.code formats
-      const receivedCode = response.data.code || 
-                          (response.data.message && response.data.message.code) || 
-                          response.data;
-      
-      setCode(typeof receivedCode === 'string' ? receivedCode : JSON.stringify(receivedCode, null, 2));
-      setHtml(typeof receivedCode === 'string' ? receivedCode : '');
+      const response = await axios.post('http://localhost:8000/generate', { prompt, language: 'html' });
+      const { code: generatedCode, suggestions: generatedSuggestions, error: apiError, message: apiMessage } = response.data;
+      if (apiError) {
+        setError(apiMessage || 'Error generating code');
+      } else {
+        setCode(generatedCode);
+        setSuggestions(generatedSuggestions);
+        setHtml(isReactCode(generatedCode) ? '' : generatedCode);
+      }
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to generate code');
+      setError(err.response?.data?.message || 'Failed to generate code');
     } finally {
       setIsLoading(false);
     }
@@ -55,6 +54,18 @@ function App() {
     `;
     setCode(testHTML);
     setHtml(testHTML);
+  };
+
+  const downloadCode = () => {
+    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+    const ext = isReactCode(code) ? 'jsx' : 'html';
+    const filename = `generated.${ext}`;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -92,6 +103,17 @@ function App() {
           ) : (
             <div className="placeholder">Generated code will appear here</div>
           )}
+          {suggestions.length > 0 && (
+            <div className="suggestions">
+              <h3>Suggestions</h3>
+              <ul>
+                {suggestions.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <button onClick={downloadCode} className="download-btn">Download Code</button>
         </div>
         
         <div className="preview-section">

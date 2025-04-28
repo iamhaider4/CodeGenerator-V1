@@ -1,9 +1,10 @@
 import os
 import google.generativeai as genai
+import json  # for parsing structured responses
 from typing import Optional
 import logging
 from pydantic import BaseModel
-
+import re 
 logger = logging.getLogger(__name__)
 
 class GeminiConfig(BaseModel):
@@ -58,3 +59,43 @@ def generate_code(prompt: str, language: str = "python") -> Optional[str]:
     except Exception as e:
         logger.error(f"Code generation failed: {str(e)}", exc_info=True)
         return None
+
+def generate_structured_code(prompt: str, language: str = "python") -> dict:
+    """
+    Generate code and suggestions as structured JSON via Gemini API.
+    """
+    model = genai.GenerativeModel(config.model_name)
+    # Instruct model to output JSON
+    json_prompt = (
+        f"You are an expert {language} developer. Generate code for: {prompt}. "
+        "Return ONLY valid JSON with keys 'code' (string) and 'suggestions' (list of strings)."
+    )
+    response = model.generate_content(json_prompt, generation_config={"temperature": config.temperature})
+    raw = response.text or ""
+    print(raw)
+    raw = remove_json_code_block(raw)
+    print(raw)
+    try:
+        data = json.loads(raw)
+    except Exception:
+        # Re-prompt to strictly valid JSON
+        parse_prompt = (
+            "The previous response was not valid JSON. "
+            "Please output only valid JSON with keys 'code' and 'suggestions'. "
+            f"Here is the response: {raw}"
+        )
+        parse_resp = model.generate_content(parse_prompt, generation_config={"temperature": 0})
+        try:
+            data = json.loads(parse_resp.text or "")
+        except Exception:
+            data = {"code": raw, "suggestions": []}
+    return {"code": data.get("code", ""), "suggestions": data.get("suggestions", [])}
+
+def remove_json_code_block(text):
+    # Remove "```json" from the start and "```" from the end
+    if text.startswith("```json"):
+        text = text[len("```json"):].lstrip()  # Remove "```json" and any leading spaces
+    if text.endswith("```"):
+        text = text[:len(text)-3].rstrip()  # Remove "```" from the end
+
+    return text

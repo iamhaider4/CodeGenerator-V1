@@ -19,7 +19,7 @@ function App() {
     setError('');
     
     try {
-      const response = await axios.post('http://localhost:8000/generate', { prompt, language: 'html' });
+      const response = await axios.post('https://codegenerator-v1.onrender.com/generate', { prompt, language: 'html' });
       const { code: generatedCode, suggestions: generatedSuggestions, error: apiError, message: apiMessage } = response.data;
       if (apiError) {
         setError(apiMessage || 'Error generating code');

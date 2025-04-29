@@ -5,6 +5,7 @@ from services.gemini_service import generate_structured_code
 from bs4 import BeautifulSoup
 import logging
 import json
+import jsbeautifier
 
 app = FastAPI(title="AI Coding Agent")
 
@@ -40,10 +41,17 @@ async def generate_code_endpoint(request: CodeRequest):
             content = {"code": "", "suggestions": [], "error": True, "message": "Error generating code"}
             json_str = json.dumps(content, indent=2)
             return Response(content=json_str, media_type="application/json")
-        # Format HTML code for readability
+        # Format code based on language
         formatted_code = code
-        if request.language.lower() == "html":
+        lang = request.language.lower()
+        if lang == "html":
             formatted_code = BeautifulSoup(code, "html.parser").prettify()
+        elif lang == "css":
+            opts = jsbeautifier.default_options()
+            formatted_code = jsbeautifier.beautify(formatted_code, opts)
+        elif lang in ("js", "javascript"):
+            opts = jsbeautifier.default_options()
+            formatted_code = jsbeautifier.beautify(formatted_code, opts)
         content = {"code": formatted_code, "suggestions": suggestions, "error": False, "message": ""}
         json_str = json.dumps(content, indent=2)
         return Response(content=json_str, media_type="application/json")

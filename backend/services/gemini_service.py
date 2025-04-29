@@ -14,7 +14,7 @@ class GeminiConfig(BaseModel):
 
 # Configuration with fallback
 config = GeminiConfig(
-    api_key=os.getenv("GOOGLE_API_KEY") or "AIzaSyCRUxu1ByGIHryNNzgvzzJLhATE9DE8_yQ"
+    api_key=os.getenv("GOOGLE_API_KEY") or "AIzaSyC8JzP9vm8ztLjfXbVhPLg5gzY1ZYFPhog"
 )
 
 def validate_config() -> bool:
@@ -67,14 +67,13 @@ def generate_structured_code(prompt: str, language: str = "python") -> dict:
     model = genai.GenerativeModel(config.model_name)
     # Instruct model to output JSON
     json_prompt = (
-        f"You are an expert {language} developer. Generate code for: {prompt}. "
-        "Return ONLY valid JSON with keys 'code' (string) and 'suggestions' (list of strings)."
+        f"You are an expert {language} developer. Generate {language} code for: {prompt}. "
+        "Return ONLY valid JSON with exactly two keys: 'code' (the raw code string without markdown fences) and 'suggestions' (an array of suggestion strings). "
+        "Do not include any additional text or markdown. Ensure the JSON is valid and parsable."
     )
     response = model.generate_content(json_prompt, generation_config={"temperature": config.temperature})
     raw = response.text or ""
-    print(raw)
     raw = remove_json_code_block(raw)
-    print(raw)
     try:
         data = json.loads(raw)
     except Exception:
@@ -92,10 +91,8 @@ def generate_structured_code(prompt: str, language: str = "python") -> dict:
     return {"code": data.get("code", ""), "suggestions": data.get("suggestions", [])}
 
 def remove_json_code_block(text):
-    # Remove "```json" from the start and "```" from the end
-    if text.startswith("```json"):
-        text = text[len("```json"):].lstrip()  # Remove "```json" and any leading spaces
-    if text.endswith("```"):
-        text = text[:len(text)-3].rstrip()  # Remove "```" from the end
-
+    # Remove any opening fence like ```json, ```html, ```css, ```javascript, etc.
+    text = re.sub(r'^```[^\n]*\n', '', text)
+    # Remove closing fence ```
+    text = re.sub(r'\n```$', '', text)
     return text

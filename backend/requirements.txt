@@ -4,3 +4,4 @@ python-dotenv
 google-generativeai
 grpcio
 beautifulsoup4
+jsbeautifier
